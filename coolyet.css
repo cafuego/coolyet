@@ -1,0 +1,16 @@
+.coolyet-state {
+  font-size: 36pt;
+  text-align: center;
+  margin: auto;
+  margin-bottom: 6em;
+  margin-top: 3em;
+}
+
+.coolyet-information {
+  font-size: 9pt;
+  color: #999;
+  text-align: center;
+  width: 500px;
+  margin: auto;
+  line-height: 1em;
+}

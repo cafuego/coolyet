@@ -1,0 +1,12 @@
+<?php
+/**
+ * @file coolyet.install
+ * Install/uninstall routines for the CoolYet module.
+ */
+
+/**
+ * Implements hook_uninstall().
+ */
+function coolyet_uninstall() {
+  variable_del('coolyet_state');
+}

@@ -1,0 +1,125 @@
+<?php
+/**
+ * @file coolyet.module
+ * Routines for the CoolYet module.
+ */
+
+/**
+ * Define some fixed data.
+ */
+
+// The BOM url with json data.
+define('COOLYET_DATA', 'http://www.bom.gov.au/fwo/IDV60901/IDV60901.94868.json');
+// The temperature change over 30 mins that constitutes a cool change.
+define('COOLYET_CHANGE', -3);
+// The temperature change over 30 mins that signals the cool change is over.
+define('COOLYET_GONE', 0.5);
+
+/**
+ * Implements hook_menu().
+ */
+function coolyet_menu() {
+  $items['coolyet'] = array(
+    'title' => t('Has the cool change happened yet?'),
+    'description' => t('Check whether Melbourne is cooling down yet.'),
+    'page callback' => 'coolyet_melbourne',
+    'access callback' => TRUE,
+    'type' => MENU_NORMAL_ITEM,
+  );
+  return $items;
+}
+
+/**
+ * Callback handler.
+ *
+ * Check recent temperature changes and spit out a user readable conclusion.
+ *
+ * @return
+ *   A render array.
+ */
+function coolyet_melbourne() {
+  $observations = _coolyet_observations();
+  $cool = _coolyet_check($observations['data']);
+
+  $state = $cool ? t('Yes') : t('No');
+
+  // Link the URLs in the copyright notice.
+  $copyright = strtr($observations['notice'][0]['copyright'], array(
+    $observations['notice'][0]['copyright_url'] => l($observations['notice'][0]['copyright_url'], $observations['notice'][0]['copyright_url']),
+    $observations['notice'][0]['disclaimer_url'] => l($observations['notice'][0]['disclaimer_url'], $observations['notice'][0]['disclaimer_url']),
+    $observations['notice'][0]['feedback_url'] => l($observations['notice'][0]['feedback_url'], $observations['notice'][0]['feedback_url']),
+  ));
+
+  return array(
+    'state' => array(
+      '#type' => 'markup',
+      '#markup' => $state,
+      '#prefix' => '<div class="coolyet-state">',
+      '#suffix' => '</div>',
+    ),
+    'information' => array(
+      '#type' => 'markup',
+      '#markup' => t('<a href="@url">Data</a> courtesy of Bureau of Meteorology. @name @product @issued. !copyright', array(
+        '@url' => COOLYET_DATA,
+        '@name' => $observations['header'][0]['name'],
+        '@product' => $observations['header'][0]['product_name'],
+        '@issued' => $observations['header'][0]['refresh_message'],
+        '!copyright' => $copyright,
+      )),
+      '#prefix' => '<div class="coolyet-information">',
+      '#suffix' => '</div>',
+    ),
+  );
+}
+
+/**
+ * Helper that determines if a cool change happened.
+ *
+ * A cool change is defined as a 3°C temperature drop over the last interval.
+ * Keep changed unless the temperature has risen > 0.5°C
+ *
+ * To this end we store the current state in the database.
+ *
+ * @param $data
+ *   An array of BOM observations.
+ *
+ * @return
+ *   TRUE or FALSE.
+ */
+function _coolyet_check($data) {
+  // Grab the current state.
+  $state = variable_get('coolyet_state', FALSE);
+
+  // No data? Can't change your mind then.
+  if (empty($data)) {
+    return $state;
+  }
+
+  for ($i = 1; $i < count($data); $i++) {
+    // Difference with previous measurement.
+    $drop = (float)$data[$i - 1]['air_temp'] - $data[$i]['air_temp'];
+
+    // If the temperature has risen over ½°C, the cool change is over.
+    if (!empty($state) && $drop > COOLYET_GONE) {
+      variable_set('coolyet_state', FALSE);
+      return FALSE;
+    }
+    // If the temperature has dropped by 3°C or more, the cool change
+    // has happened.
+    else if ($drop <= COOLYET_CHANGE) {
+      variable_set('coolyet_state', TRUE);
+      return TRUE;
+    }
+  }
+
+  return $state;
+}
+
+/**
+ * Helper to fetch json data from the BOM website.
+ */
+function _coolyet_observations() {
+  $request = drupal_http_request(COOLYET_DATA);
+  $json = drupal_json_decode($request->data);
+  return $json['observations'];
+}
