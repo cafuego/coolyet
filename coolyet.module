@@ -83,14 +83,14 @@ function _coolyet_check($data) {
   $change = -1 * variable_get('coolyet_change', COOLYET_CHANGE);
   $reset = variable_get('coolyet_reset', COOLYET_RESET);
 
-
-  for ($i = 1; $i < count($data); $i++) {
+  // Only check the past 12 hours, so we avoid yesterday's cool change.
+  for ($i = 1; $i < min(count($data), 24); $i++) {
     // Difference with previous measurement.
     $drop = (float)$data[$i - 1]['air_temp'] - $data[$i]['air_temp'];
 
     // If the temperature has risen over ½°C, the cool change is over.
     if (!empty($state) && $drop > $reset) {
-      watchdog('coolyet', 'Cool change is over. The temperature has risen from @old&deg;C to @new&deg;C by @time.', array('@old' => $data[$i]['air_temp'], '@new' => $data[$i - 1]['air_temp']), WATCHDOG_INFO);
+      watchdog('coolyet', 'Cool change is over. The temperature has risen from @old&deg;C to @new&deg;C.', array('@old' => $data[$i]['air_temp'], '@new' => $data[$i - 1]['air_temp']), WATCHDOG_INFO);
       variable_set('coolyet_state', FALSE);
       return FALSE;
     }
