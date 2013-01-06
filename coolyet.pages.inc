@@ -26,7 +26,6 @@ function coolyet_melbourne() {
   ));
 
   drupal_set_title(t('Has the @city cool change happened yet?', array('@city' => $observations['header'][0]['name'])));
-dpm($observations);
 
   return array(
     'state' => array(
